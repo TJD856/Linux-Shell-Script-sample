@@ -1,0 +1,53 @@
+cat extract_nav.sh
+#!/bin/bash
+
+# Set output filenames
+TSV_FILE="amfi_nav_data.tsv"
+JSON_FILE="amfi_nav_data.json"
+
+echo "Fetching NAV data from AMFI..."
+
+# Create TSV header
+echo -e "Scheme Name\tNAV Value\tDate" > "$TSV_FILE"
+
+# Start JSON structure
+echo "{" > "$JSON_FILE"
+echo "  \"last_updated\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"," >> "$JSON_FILE"
+echo "  \"schemes\": [" >> "$JSON_FILE"
+
+# Fetch and process data
+curl -s "https://www.amfiindia.com/spages/NAVAll.txt" | \
+    awk -F';' '
+    NF >= 5 {
+        # Clean up the fields
+        scheme_name = $4
+        nav_value = $5
+        date = $6
+
+        # Remove leading/trailing whitespace
+        gsub(/^[ \t]+|[ \t]+$/, "", scheme_name)
+        gsub(/^[ \t]+|[ \t]+$/, "", nav_value)
+        gsub(/^[ \t]+|[ \t]+$/, "", date)
+
+        # Skip header or invalid lines
+        if (nav_value ~ /^[0-9.]+$/) {
+            # Output TSV format
+            printf "%s\t%s\t%s\n", scheme_name, nav_value, date >> "'$TSV_FILE'"
+
+            # Output JSON format (except last comma)
+            printf "    {\n      \"scheme_name\": \"%s\",\n      \"nav_value\": %s,\n      \"date\": \"%s\"\n    },\n",
+                  scheme_name, nav_value, date >> "'$JSON_FILE'"
+        }
+    }'
+
+# Remove the last comma and close JSON structure
+sed -i '$ s/,$//' "$JSON_FILE"
+echo "  ]" >> "$JSON_FILE"
+echo "}" >> "$JSON_FILE"
+
+# Count number of schemes (excluding header)
+TOTAL_SCHEMES=$(( $(wc -l < "$TSV_FILE") - 1 ))
+
+echo "Data saved as TSV: $TSV_FILE"
+echo "Data saved as JSON: $JSON_FILE"
+echo "Total schemes processed: $TOTAL_SCHEMES"

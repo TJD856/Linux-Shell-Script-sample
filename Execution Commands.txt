@@ -1,0 +1,6 @@
+Commands to execute the file in Shell Scripting:
+
+1. chmod +x extract_nav.sh
+2. ./extract_nav.sh
+3. cat amfi_nav_data.tsv
+4. cat nav_output.tsv | head
